@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../auth/controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../services/admin_service.dart';
 import 'manage_faculty_screen.dart';
@@ -8,14 +6,13 @@ import 'manage_students_screen.dart';
 import 'admin_issue_list_screen.dart';
 import '../../notices/screens/notices_screen.dart';
 import '../../feedback/screens/feedback_screen.dart';
-import '../../dashboard/screens/profile_screen.dart';
+import '../../dashboard/widgets/user_menu.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authController = Provider.of<AuthController>(context);
     final adminService = AdminService();
 
     return Scaffold(
@@ -28,35 +25,7 @@ class AdminDashboard extends StatelessWidget {
         backgroundColor: AppColors.darkSlate,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.white),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton.icon(
-              onPressed: () => authController.signOut(),
-              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
-              label: const Text(
-                "Logout",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ),
-        ],
+        actions: [const UserMenu(color: Colors.white)],
       ),
       body: Container(
         decoration: BoxDecoration(

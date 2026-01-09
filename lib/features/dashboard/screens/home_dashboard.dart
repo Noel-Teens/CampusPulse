@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../widgets/dashboard_tile.dart';
+import '../widgets/user_menu.dart';
 import '../../campus_map/screens/campus_map_screen.dart';
 import '../../issue_reporting/screens/report_issue_screen.dart';
 import '../../notices/screens/notices_screen.dart';
@@ -29,10 +30,7 @@ class HomeDashboard extends StatelessWidget {
             icon: const Icon(Icons.notifications_none),
             onPressed: () {},
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => authController.signOut(),
-          ),
+          const UserMenu(),
         ],
       ),
       body: Padding(

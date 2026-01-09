@@ -12,7 +12,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
+  final _nameFocusNode = FocusNode();
   bool _isEditing = false;
+  String _originalName = "";
 
   @override
   void initState() {
@@ -21,12 +23,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       listen: false,
     ).userModel;
-    _nameController.text = userModel?.name ?? "";
+    _originalName = userModel?.name ?? "";
+    _nameController.text = _originalName;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
@@ -35,6 +39,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authController = Provider.of<AuthController>(context);
     final user = authController.user;
     final userModel = authController.userModel;
+
+    // Sync controller if model changes from external source
+    if (!_isEditing && _nameController.text != (userModel?.name ?? "")) {
+      _nameController.text = userModel?.name ?? "";
+      _originalName = _nameController.text;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -56,35 +66,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Name Field
             TextField(
               controller: _nameController,
+              focusNode: _nameFocusNode,
               enabled: _isEditing,
               decoration: InputDecoration(
                 labelText: "Full Name",
-                suffixIcon: IconButton(
-                  icon: Icon(_isEditing ? Icons.check : Icons.edit),
-                  onPressed: () async {
-                    if (_isEditing) {
-                      try {
-                        await authController.updateProfileName(
-                          _nameController.text.trim(),
-                        );
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Profile updated!")),
-                          );
+                prefixIcon: const Icon(Icons.person_outline),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isEditing)
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey),
+                        onPressed: () {
+                          setState(() {
+                            _isEditing = false;
+                            _nameController.text = _originalName;
+                          });
+                        },
+                      ),
+                    IconButton(
+                      icon: Icon(
+                        _isEditing ? Icons.check : Icons.edit,
+                        color: _isEditing ? Colors.green : AppColors.deepBlue,
+                      ),
+                      onPressed: () async {
+                        if (_isEditing) {
+                          if (_nameController.text.trim().isEmpty) return;
+                          try {
+                            await authController.updateProfileName(
+                              _nameController.text.trim(),
+                            );
+                            _originalName = _nameController.text.trim();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Profile updated!"),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Error: $e")),
+                              );
+                            }
+                            return;
+                          }
+                        } else {
+                          _nameFocusNode.requestFocus();
                         }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text("Error: $e")));
-                        }
-                      }
-                    }
-                    setState(() => _isEditing = !_isEditing);
-                  },
+                        setState(() => _isEditing = !_isEditing);
+                      },
+                    ),
+                  ],
                 ),
                 border: const OutlineInputBorder(),
               ),
+              onSubmitted: (_) {
+                if (_isEditing) {
+                  // Trigger same logic as check button
+                }
+              },
             ),
             const SizedBox(height: 16),
 
