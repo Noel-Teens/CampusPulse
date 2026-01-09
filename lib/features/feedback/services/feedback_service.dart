@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/feedback_model.dart';
 
@@ -59,8 +60,19 @@ class FeedbackService {
         .collection('users')
         .where('role', isEqualTo: 'faculty')
         .get();
+
+    // Debugging: print snapshot size
+    debugPrint("Faculty found: ${snapshot.docs.length}");
+
     return snapshot.docs
-        .map((doc) => {'uid': doc.id, 'name': doc['name'] ?? 'Unknown Faculty'})
+        .map(
+          (doc) => {
+            'uid': doc.id,
+            'name': doc.data().containsKey('name')
+                ? doc['name']
+                : 'Faculty (${doc['email']})',
+          },
+        )
         .toList();
   }
 

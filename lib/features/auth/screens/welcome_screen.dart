@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/controllers/auth_controller.dart';
+import '../../auth/screens/email_verification_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import 'login_screen.dart';
 
@@ -128,7 +129,12 @@ class WelcomeScreen extends StatelessWidget {
                     )
                   else ...[
                     ElevatedButton(
-                      onPressed: () => authController.signInAnonymously(),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EmailVerificationScreen(),
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.tealAccent,
                         foregroundColor: AppColors.darkSlate,

@@ -225,12 +225,73 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Get users by role (Admin use)
+  Stream<List<UserModel>> getUsersByRole(UserRole role) {
+    return _firestore
+        .collection('users')
+        .where('role', isEqualTo: role.name)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => UserModel.fromMap(doc.data()))
+              .toList(),
+        );
+  }
+
   // Reload User
   Future<void> reloadUser() async {
     if (_firebaseUser != null) {
       await _firebaseUser!.reload();
       _firebaseUser = _auth.currentUser;
       notifyListeners();
+    }
+  }
+
+  // Update Profile Name
+  Future<void> updateProfileName(String name) async {
+    if (_firebaseUser == null) return;
+    try {
+      _setLoading(true);
+      await _firestore.collection('users').doc(_firebaseUser!.uid).update({
+        'name': name,
+      });
+      await _fetchUserModel(_firebaseUser!.uid);
+    } catch (e) {
+      debugPrint("Error updating name: $e");
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Send Password Reset Email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      _setLoading(true);
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      debugPrint("Error sending reset email: $e");
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Delete User (Admin/Service use)
+  // Note: Standard Firebase Auth deletion requires recent login.
+  // For Admin deleting others, it usually requires a backend.
+  // For MVP, we will delete the Firestore doc and hope the Auth user is handled or used as a placeholder.
+  // Real implementation would use Firebase Admin SDK in a Cloud Function.
+  Future<void> deleteUser(String uid) async {
+    try {
+      _setLoading(true);
+      await _firestore.collection('users').doc(uid).delete();
+      // Note: We can't easily delete the Auth record from the client for ANOTHER user.
+    } catch (e) {
+      debugPrint("Error deleting user: $e");
+      rethrow;
+    } finally {
+      _setLoading(false);
     }
   }
 

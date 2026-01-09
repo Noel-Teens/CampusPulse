@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../services/admin_service.dart';
-import 'add_faculty_screen.dart';
+import 'manage_faculty_screen.dart';
+import 'manage_students_screen.dart';
 import 'admin_issue_list_screen.dart';
 import '../../notices/screens/notices_screen.dart';
 import '../../feedback/screens/feedback_screen.dart';
+import '../../dashboard/screens/profile_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -27,6 +29,13 @@ class AdminDashboard extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: TextButton.icon(
@@ -179,12 +188,12 @@ class AdminDashboard extends StatelessWidget {
         _buildActionCard(
           context,
           "Faculty Accounts",
-          "Create & Manage",
+          "View & Manage",
           Icons.person_add_alt_1_rounded,
           AppColors.tealAccent,
-          () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const AddFacultyScreen())),
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ManageFacultyScreen()),
+          ),
         ),
         _buildActionCard(
           context,
@@ -219,11 +228,14 @@ class AdminDashboard extends StatelessWidget {
         ),
         _buildActionCard(
           context,
-          "Class Invites",
-          "Student Access",
-          Icons.qr_code_2_rounded,
+          "Student Portal",
+          "Manage Access",
+          Icons.school_rounded,
           Colors.blueGrey,
-          () {},
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ManageStudentsScreen()),
+          ),
         ),
       ],
     );
