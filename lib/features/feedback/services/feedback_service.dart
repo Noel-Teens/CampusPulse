@@ -16,16 +16,22 @@ class FeedbackService {
 
   // Get feedback for specific faculty
   Stream<List<FeedbackModel>> getFeedbackForFaculty(String facultyId) {
+    debugPrint("Fetching feedback for faculty: $facultyId");
     return _firestore
         .collection(_collection)
         .where('facultyId', isEqualTo: facultyId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          debugPrint(
+            "Feedback docs found for faculty: ${snapshot.docs.length}",
+          );
+          final list = snapshot.docs
               .map((doc) => FeedbackModel.fromMap(doc.data()))
-              .toList(),
-        );
+              .toList();
+          // Sort in memory to avoid indexing requirements
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   }
 
   // Get all feedback (Admin)

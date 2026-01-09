@@ -24,7 +24,10 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthController()),
-        ChangeNotifierProvider(create: (_) => AIController()),
+        ChangeNotifierProxyProvider<AuthController, AIController>(
+          create: (_) => AIController(),
+          update: (_, auth, ai) => ai!..setUid(auth.user?.uid),
+        ),
       ],
       child: const CampusPulseApp(),
     ),

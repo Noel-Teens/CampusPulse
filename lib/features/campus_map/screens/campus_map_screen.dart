@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../issue_reporting/screens/report_issue_screen.dart';
 import '../../../core/constants/app_colors.dart';
 
@@ -33,6 +34,127 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
   final LatLng _center = const LatLng(12.866444, 80.220694);
 
   MarkerCategory _selectedCategory = MarkerCategory.all;
+  Set<Polyline> _polylines = {};
+
+  Future<bool> _handleLocationPermission() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location services are disabled. Please enable the services',
+            ),
+          ),
+        );
+      }
+      return false;
+    }
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permissions are denied')),
+          );
+        }
+        return false;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location permissions are permanently denied, we cannot request permissions.',
+            ),
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _startNavigation(CampusMarker marker) async {
+    debugPrint("Navigation requested for: ${marker.title}");
+    final hasPermission = await _handleLocationPermission();
+    if (!hasPermission) {
+      debugPrint("Location permission denied or services disabled.");
+      return;
+    }
+
+    try {
+      debugPrint("Fetching current position...");
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      debugPrint(
+        "Current position: ${position.latitude}, ${position.longitude}",
+      );
+
+      setState(() {
+        _polylines = {
+          Polyline(
+            polylineId: const PolylineId("route"),
+            points: [
+              LatLng(position.latitude, position.longitude),
+              marker.position,
+            ],
+            color: AppColors.deepBlue,
+            width: 5,
+          ),
+        };
+      });
+
+      debugPrint("Drawing polyline and moving camera.");
+
+      // Calculate robust bounds
+      double minLat = position.latitude < marker.position.latitude
+          ? position.latitude
+          : marker.position.latitude;
+      double maxLat = position.latitude > marker.position.latitude
+          ? position.latitude
+          : marker.position.latitude;
+      double minLng = position.longitude < marker.position.longitude
+          ? position.longitude
+          : marker.position.longitude;
+      double maxLng = position.longitude > marker.position.longitude
+          ? position.longitude
+          : marker.position.longitude;
+
+      LatLngBounds bounds = LatLngBounds(
+        southwest: LatLng(minLat, minLng),
+        northeast: LatLng(maxLat, maxLng),
+      );
+
+      await mapController.animateCamera(
+        CameraUpdate.newLatLngBounds(bounds, 100),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Navigating from current location to ${marker.title}",
+            ),
+            backgroundColor: AppColors.deepBlue,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error during navigation: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error starting navigation: $e")),
+        );
+      }
+    }
+  }
 
   final List<CampusMarker> _allMarkers = [
     CampusMarker(
@@ -206,6 +328,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
                       ),
                       onPressed: () {
                         Navigator.pop(context);
+                        _startNavigation(marker);
                       },
                     ),
                   ),
@@ -254,6 +377,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(target: _center, zoom: 17.5),
             markers: _getFilteredMarkers(),
+            polylines: _polylines,
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             mapType: MapType.hybrid,

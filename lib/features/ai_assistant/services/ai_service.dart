@@ -14,7 +14,15 @@ class AIService {
 
   Future<String> sendMessage(String message) async {
     try {
-      final content = Content.text(message);
+      final systemPrompt =
+          "You are the CampusPulse AI Assistant for Jeppiaar Engineering College. "
+          "You have access to current campus notices and ongoing issues. "
+          "Use the provided context to answer user questions. "
+          "Be helpful, concise, and professional. "
+          "If the user asks about something outside the campus or not in the context, "
+          "politely inform them that you are focused on campus activities.";
+
+      final content = Content.text("$systemPrompt\n\n$message");
       final response = await _chat.sendMessage(content);
 
       return response.text ??

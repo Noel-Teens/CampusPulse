@@ -67,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextField(
               controller: _nameController,
               focusNode: _nameFocusNode,
-              enabled: _isEditing,
+              readOnly: !_isEditing,
               decoration: InputDecoration(
                 labelText: "Full Name",
                 prefixIcon: const Icon(Icons.person_outline),
@@ -97,6 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _nameController.text.trim(),
                             );
                             _originalName = _nameController.text.trim();
+                            setState(() => _isEditing = false);
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -110,12 +111,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 SnackBar(content: Text("Error: $e")),
                               );
                             }
-                            return;
                           }
                         } else {
-                          _nameFocusNode.requestFocus();
+                          setState(() => _isEditing = true);
+                          // Delay focus to ensure widget is ready
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            _nameFocusNode.requestFocus();
+                          });
                         }
-                        setState(() => _isEditing = !_isEditing);
                       },
                     ),
                   ],
@@ -124,7 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onSubmitted: (_) {
                 if (_isEditing) {
-                  // Trigger same logic as check button
+                  // Handle submission if needed
                 }
               },
             ),

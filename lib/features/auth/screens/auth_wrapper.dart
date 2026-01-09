@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../auth/controllers/auth_controller.dart';
 import 'welcome_screen.dart';
 import 'email_verification_screen.dart';
-import 'invite_code_screen.dart';
 import '../../dashboard/screens/home_dashboard.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
 import '../../../models/user_model.dart';
@@ -43,12 +42,7 @@ class AuthWrapper extends StatelessWidget {
       return const EmailVerificationScreen();
     }
 
-    // 4. Verified but No Role (or Guest) -> Invite Code
-    if (userModel == null || userModel.role == UserRole.guest) {
-      return const InviteCodeScreen();
-    }
-
-    // 5. Authenticated & Verified & Has Role -> Dashboard
+    // 4. Authenticated & Verified -> Dashboard
     return const HomeDashboard();
   }
 }

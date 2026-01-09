@@ -95,7 +95,7 @@ class AuthController extends ChangeNotifier {
         uid: _firebaseUser!.uid,
         email: email,
         name: name,
-        role: UserRole.guest, // Still guest until Invite Code
+        role: UserRole.student, // Assigned student role by default
         isVerified: false,
         createdAt: DateTime.now(),
       );
@@ -252,9 +252,15 @@ class AuthController extends ChangeNotifier {
     if (_firebaseUser == null) return;
     try {
       _setLoading(true);
+
+      // Update Firebase Auth display name
+      await _firebaseUser!.updateDisplayName(name);
+
+      // Update Firestore
       await _firestore.collection('users').doc(_firebaseUser!.uid).update({
         'name': name,
       });
+
       await _fetchUserModel(_firebaseUser!.uid);
     } catch (e) {
       debugPrint("Error updating name: $e");
