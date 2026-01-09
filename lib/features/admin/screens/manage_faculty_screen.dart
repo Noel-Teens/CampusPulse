@@ -28,9 +28,11 @@ class ManageFacultyScreen extends StatelessWidget {
         backgroundColor: AppColors.tealAccent,
       ),
       body: StreamBuilder<List<UserModel>>(
-        // We can use a direct stream from Firestore here for simplicity
         stream: authController.getUsersByRole(UserRole.faculty),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -39,13 +41,22 @@ class ManageFacultyScreen extends StatelessWidget {
           }
 
           final faculty = snapshot.data!;
+          // Sort by creation date (newest first)
+          faculty.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
           return ListView.builder(
             itemCount: faculty.length,
             itemBuilder: (context, index) {
               final user = faculty[index];
               return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: Text(user.name ?? "No Name"),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.tealAccent.withOpacity(0.1),
+                  child: const Icon(Icons.person, color: AppColors.tealAccent),
+                ),
+                title: Text(
+                  user.name ?? "New Faculty",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text(user.email),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),

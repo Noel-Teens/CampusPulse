@@ -17,7 +17,13 @@ class AuthController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isVerified => _firebaseUser?.emailVerified ?? false;
 
-  UserRole get currentRole => _userModel?.role ?? UserRole.guest;
+  UserRole get currentRole {
+    if (_userModel != null) return _userModel!.role;
+    if (_firebaseUser != null && !_firebaseUser!.isAnonymous) {
+      return UserRole.student;
+    }
+    return UserRole.guest;
+  }
 
   AuthController() {
     _auth.authStateChanges().listen((User? user) async {
@@ -95,15 +101,21 @@ class AuthController extends ChangeNotifier {
         uid: _firebaseUser!.uid,
         email: email,
         name: name,
-        role: UserRole.student, // Assigned student role by default
+        role: UserRole.student,
         isVerified: false,
         createdAt: DateTime.now(),
       );
 
+      // Explicitly set the document with the role string "student"
       await _firestore
           .collection('users')
           .doc(_firebaseUser!.uid)
           .set(newUser.toMap());
+
+      // Update local state immediately to avoid "Guest" flicker
+      _userModel = newUser;
+      notifyListeners();
+
       await _fetchUserModel(_firebaseUser!.uid);
     } catch (e) {
       debugPrint("Error linking creds: $e");
@@ -131,13 +143,6 @@ class AuthController extends ChangeNotifier {
   Future<void> verifyInviteCode(String code) async {
     if (_firebaseUser == null) return;
 
-    // In a real app, query 'invite_codes' collection.
-    // For MVP/Demo, let's just accept any code that is exactly "CAMPUS123" or similar,
-    // or actually implement the collection check if desired.
-    // Let's implement a basic check against a hardcoded value or a collection for robustness if requested.
-    // PRD says "Admin generated codes". Let's assume valid for now if length > 4 for MVP speed,
-    // OR create a real collection. Let's do a simple check effectively:
-
     if (code.toUpperCase() != "STUDENT2025") {
       throw Exception("Invalid Invite Code");
     }
@@ -149,8 +154,6 @@ class AuthController extends ChangeNotifier {
       await _firestore.collection('users').doc(_firebaseUser!.uid).update({
         'role': UserRole.student.name,
         'campusId': 'campus_001', // Default campus
-        // We could also assume verification implicitly true if they reached here?
-        // But let's keep isVerified linked to email status usually.
       });
 
       // Refresh local model
@@ -163,8 +166,6 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // Function to create Faculty user without signing out Admin
-  // Uses a secondary Firebase App instance.
   Future<void> createFacultyUser(
     String email,
     String password,
@@ -185,9 +186,6 @@ class AuthController extends ChangeNotifier {
       ).createUserWithEmailAndPassword(email: email, password: password);
 
       String uid = uc.user!.uid;
-
-      // Create Firestore document for the new faculty using the MAIN app's Firestore instance
-      // (because we want to write to the main DB, and we are already authenticated as Admin on main app)
 
       UserModel newFaculty = UserModel(
         uid: uid,
@@ -227,15 +225,20 @@ class AuthController extends ChangeNotifier {
 
   // Get users by role (Admin use)
   Stream<List<UserModel>> getUsersByRole(UserRole role) {
+    debugPrint("Admin: Streaming users for role: ${role.name}");
     return _firestore
         .collection('users')
         .where('role', isEqualTo: role.name)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => UserModel.fromMap(doc.data()))
-              .toList(),
-        );
+        .map((snapshot) {
+          debugPrint(
+            "Admin: Found ${snapshot.docs.length} users with role: ${role.name}",
+          );
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return UserModel.fromMap(data);
+          }).toList();
+        });
   }
 
   // Reload User

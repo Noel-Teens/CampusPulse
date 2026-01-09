@@ -20,6 +20,9 @@ class ManageStudentsScreen extends StatelessWidget {
       body: StreamBuilder<List<UserModel>>(
         stream: authController.getUsersByRole(UserRole.student),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -28,13 +31,25 @@ class ManageStudentsScreen extends StatelessWidget {
           }
 
           final students = snapshot.data!;
+          // Sort by creation date (newest first)
+          students.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
           return ListView.builder(
             itemCount: students.length,
             itemBuilder: (context, index) {
               final user = students[index];
               return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.school_outlined)),
-                title: Text(user.name ?? "No Name"),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.deepBlue.withOpacity(0.1),
+                  child: const Icon(
+                    Icons.school_outlined,
+                    color: AppColors.deepBlue,
+                  ),
+                ),
+                title: Text(
+                  user.name ?? "New Student",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text(user.email),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),

@@ -12,29 +12,26 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Listen to Auth State
     final authController = Provider.of<AuthController>(context);
     final user = authController.user;
-    final userModel = authController.userModel;
+    final userRole = authController.currentRole;
 
     // 1. Unauthenticated -> Welcome
     if (user == null) {
       return const WelcomeScreen();
     }
 
-    // 2. Privileged Roles (Admin/Faculty) - Bypass Verification Check
-    if (userModel != null) {
-      if (userModel.role == UserRole.admin) {
-        return const AdminDashboard();
-      }
-      if (userModel.role == UserRole.faculty) {
-        return const HomeDashboard();
-      }
+    // 2. Privileged Roles (Admin/Faculty) - Bypass Verification
+    if (userRole == UserRole.admin) {
+      return const AdminDashboard();
+    }
+    if (userRole == UserRole.faculty) {
+      return const HomeDashboard();
     }
 
     // 3. Authenticated but Unverified -> Email Verification
-    // We check BOTH Firebase Auth's emailVerified AND our Firestore isVerified flag.
-    // This allows manual verification by Admin to work.
+    // Use authController.userModel directly for the firestore check
+    final userModel = authController.userModel;
     final firebaseVerified = user.emailVerified;
     final firestoreVerified = userModel?.isVerified ?? false;
 
@@ -42,7 +39,7 @@ class AuthWrapper extends StatelessWidget {
       return const EmailVerificationScreen();
     }
 
-    // 4. Authenticated & Verified -> Dashboard
+    // 4. Authenticated & Verified -> Student Dashboard
     return const HomeDashboard();
   }
 }

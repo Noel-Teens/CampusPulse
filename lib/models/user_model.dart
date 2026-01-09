@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 enum UserRole {
   student,
@@ -39,17 +40,29 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
-    return UserModel(
-      uid: map['uid'] ?? '',
-      email: map['email'] ?? '',
-      name: map['name'],
-      role: UserRole.values.firstWhere(
-        (e) => e.name == map['role'],
-        orElse: () => UserRole.guest,
-      ),
-      isVerified: map['isVerified'] ?? false,
-      campusId: map['campusId'],
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-    );
+    try {
+      return UserModel(
+        uid: map['uid'] as String? ?? '',
+        email: map['email'] as String? ?? '',
+        name: map['name'] as String?,
+        role: UserRole.values.firstWhere(
+          (e) => e.name == map['role'],
+          orElse: () => UserRole.guest,
+        ),
+        isVerified: map['isVerified'] as bool? ?? false,
+        campusId: map['campusId'] as String?,
+        createdAt: map['createdAt'] != null
+            ? (map['createdAt'] as Timestamp).toDate()
+            : DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint("Error parsing UserModel: $e | Data: $map");
+      return UserModel(
+        uid: map['uid'] as String? ?? 'error',
+        email: map['email'] as String? ?? 'error',
+        role: UserRole.guest,
+        createdAt: DateTime.now(),
+      );
+    }
   }
 }
