@@ -29,4 +29,11 @@ class NoticeService {
   Future<void> deleteNotice(String id) async {
     await _firestore.collection(_collection).doc(id).delete();
   }
+
+  Future<void> updateNotice(NoticeModel notice) async {
+    await _firestore
+        .collection(_collection)
+        .doc(notice.id)
+        .update(notice.toMap());
+  }
 }

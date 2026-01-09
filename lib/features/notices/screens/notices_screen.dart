@@ -63,6 +63,11 @@ class NoticesScreen extends StatelessWidget {
   }
 
   Widget _buildNoticeCard(BuildContext context, NoticeModel notice) {
+    final authController = Provider.of<AuthController>(context, listen: false);
+    final userRole = authController.userModel?.role ?? UserRole.guest;
+    final canManage =
+        userRole == UserRole.admin || userRole == UserRole.faculty;
+
     Color priorityColor;
     switch (notice.priority) {
       case NoticePriority.urgent:
@@ -132,6 +137,75 @@ class NoticesScreen extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ),
+                    if (canManage)
+                      PopupMenuButton<String>(
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AddNoticeScreen(notice: notice),
+                              ),
+                            );
+                          } else if (value == 'delete') {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Delete Notice"),
+                                content: const Text(
+                                  "Are you sure you want to delete this notice?",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text("Cancel"),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text(
+                                      "Delete",
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await NoticeService().deleteNotice(notice.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Notice deleted"),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit),
+                              title: Text("Edit"),
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete, color: Colors.red),
+                              title: Text(
+                                "Delete",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ),
+                        ],
+                        icon: const Icon(Icons.more_vert),
                       ),
                   ],
                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
+import '../services/admin_service.dart';
 import 'add_faculty_screen.dart';
 import 'admin_issue_list_screen.dart';
 import '../../notices/screens/notices_screen.dart';
@@ -12,121 +13,251 @@ class AdminDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authController = Provider.of<AuthController>(context);
+    final adminService = AdminService();
 
     return Scaffold(
+      backgroundColor: AppColors.softWhite,
       appBar: AppBar(
-        title: const Text("Admin Dashboard"),
+        title: const Text(
+          "Admin Hub",
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
+        ),
         backgroundColor: AppColors.darkSlate,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => authController.signOut(),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: TextButton.icon(
+              onPressed: () => authController.signOut(),
+              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
+              label: const Text(
+                "Logout",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildStatCard("Total Users", "42"), // Mock data
-            const SizedBox(height: 16),
-            _buildStatCard("Active Issues", "12"), // Mock data
-            const SizedBox(height: 24),
-            const Text(
-              "User Management",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.person_add,
-                  color: AppColors.deepBlue,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.darkSlate, AppColors.softWhite],
+            stops: const [0.0, 0.3],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Overview",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-                title: const Text("Create Faculty Account"),
-                subtitle: const Text("Add new faculty members to the system"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddFacultyScreen()),
-                  );
-                },
               ),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.report_problem,
-                  color: AppColors.issueAccent,
-                ),
-                title: const Text("Manage Issues"),
-                subtitle: const Text("View and update reported issues"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const AdminIssueListScreen(),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: StreamBuilder<int>(
+                      stream: adminService.getUserCount(),
+                      builder: (context, snapshot) {
+                        return _buildStatCard(
+                          "Total Users",
+                          snapshot.hasData ? snapshot.data.toString() : "...",
+                          Icons.people_alt_rounded,
+                          AppColors.deepBlue,
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: StreamBuilder<int>(
+                      stream: adminService.getIssueCount(),
+                      builder: (context, snapshot) {
+                        return _buildStatCard(
+                          "Active Issues",
+                          snapshot.hasData ? snapshot.data.toString() : "...",
+                          Icons.error_outline_rounded,
+                          AppColors.issueAccent,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.campaign,
-                  color: AppColors.noticeAccent,
+              const SizedBox(height: 32),
+              const Text(
+                "Management Actions",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkSlate,
                 ),
-                title: const Text("Manage Notices"),
-                subtitle: const Text("Post and manage campus announcements"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const NoticesScreen()),
-                  );
-                },
               ),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.settings, color: Colors.grey),
-                title: const Text("Manage Class Invites"),
-                subtitle: const Text("View and edit student invite codes"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Todo
-                },
-              ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              _buildActionGrid(context),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value) {
-    return Card(
-      color: AppColors.softWhite,
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppColors.deepBlue,
-              ),
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkSlate,
             ),
-            const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.mutedGray,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionGrid(BuildContext context) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.1,
+      children: [
+        _buildActionCard(
+          context,
+          "Faculty Accounts",
+          "Create & Manage",
+          Icons.person_add_alt_1_rounded,
+          AppColors.tealAccent,
+          () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AddFacultyScreen())),
+        ),
+        _buildActionCard(
+          context,
+          "Campus Issues",
+          "Resolve Reports",
+          Icons.bug_report_rounded,
+          AppColors.issueAccent,
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AdminIssueListScreen()),
+          ),
+        ),
+        _buildActionCard(
+          context,
+          "Announcements",
+          "Post Notices",
+          Icons.campaign_rounded,
+          AppColors.noticeAccent,
+          () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const NoticesScreen())),
+        ),
+        _buildActionCard(
+          context,
+          "Class Invites",
+          "Student Access",
+          Icons.qr_code_2_rounded,
+          Colors.blueGrey,
+          () {},
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(
+    BuildContext context,
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.1), width: 1),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.1),
+              radius: 24,
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(fontSize: 16, color: AppColors.mutedGray),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkSlate,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: AppColors.mutedGray),
             ),
           ],
         ),

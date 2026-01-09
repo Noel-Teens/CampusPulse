@@ -7,7 +7,8 @@ import '../../../core/constants/app_colors.dart';
 import 'package:intl/intl.dart';
 
 class AddNoticeScreen extends StatefulWidget {
-  const AddNoticeScreen({super.key});
+  final NoticeModel? notice;
+  const AddNoticeScreen({super.key, this.notice});
 
   @override
   State<AddNoticeScreen> createState() => _AddNoticeScreenState();
@@ -15,14 +16,28 @@ class AddNoticeScreen extends StatefulWidget {
 
 class _AddNoticeScreenState extends State<AddNoticeScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _contentController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _contentController;
   final NoticeService _noticeService = NoticeService();
 
-  NoticePriority _selectedPriority = NoticePriority.normal;
-  bool _isEvent = false;
+  late NoticePriority _selectedPriority;
+  late bool _isEvent;
   DateTime? _eventDate;
   bool _isLoading = false;
+
+  bool get isEditing => widget.notice != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.notice?.title ?? '');
+    _contentController = TextEditingController(
+      text: widget.notice?.content ?? '',
+    );
+    _selectedPriority = widget.notice?.priority ?? NoticePriority.normal;
+    _isEvent = widget.notice?.isEvent ?? false;
+    _eventDate = widget.notice?.eventDate;
+  }
 
   @override
   void dispose() {
@@ -34,14 +49,16 @@ class _AddNoticeScreenState extends State<AddNoticeScreen> {
   Future<void> _pickEventDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
+      initialDate: _eventDate ?? DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) {
       final TimeOfDay? time = await showTimePicker(
         context: context,
-        initialTime: TimeOfDay.now(),
+        initialTime: _eventDate != null
+            ? TimeOfDay.fromDateTime(_eventDate!)
+            : TimeOfDay.now(),
       );
       if (time != null) {
         setState(() {
@@ -72,24 +89,37 @@ class _AddNoticeScreenState extends State<AddNoticeScreen> {
     final user = authController.user;
 
     try {
-      final newNotice = NoticeModel(
-        id: _noticeService.generateId(),
+      final notice = NoticeModel(
+        id: isEditing ? widget.notice!.id : _noticeService.generateId(),
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
-        authorId: user?.uid ?? 'unknown',
-        authorName:
-            authController.userModel?.role.name.toUpperCase() ?? 'ADMIN',
+        authorId: isEditing
+            ? widget.notice!.authorId
+            : (user?.uid ?? 'unknown'),
+        authorName: isEditing
+            ? widget.notice!.authorName
+            : (authController.userModel?.email ?? 'ADMIN'),
         priority: _selectedPriority,
-        createdAt: DateTime.now(),
+        createdAt: isEditing ? widget.notice!.createdAt : DateTime.now(),
         isEvent: _isEvent,
         eventDate: _eventDate,
       );
 
-      await _noticeService.createNotice(newNotice);
+      if (isEditing) {
+        await _noticeService.updateNotice(notice);
+      } else {
+        await _noticeService.createNotice(notice);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Notice posted successfully!")),
+          SnackBar(
+            content: Text(
+              isEditing
+                  ? "Notice updated successfully!"
+                  : "Notice posted successfully!",
+            ),
+          ),
         );
         Navigator.pop(context);
       }
@@ -107,7 +137,7 @@ class _AddNoticeScreenState extends State<AddNoticeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Post Notice")),
+      appBar: AppBar(title: Text(isEditing ? "Edit Notice" : "Post Notice")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -181,7 +211,9 @@ class _AddNoticeScreenState extends State<AddNoticeScreen> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Post Announcement"),
+                    : Text(
+                        isEditing ? "Update Announcement" : "Post Announcement",
+                      ),
               ),
             ],
           ),
