@@ -24,7 +24,15 @@ class _InviteCodeScreenState extends State<InviteCodeScreen> {
     final authController = Provider.of<AuthController>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Enter Invite Code")),
+      appBar: AppBar(
+        title: const Text("Enter Invite Code"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => authController.signOut(),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(

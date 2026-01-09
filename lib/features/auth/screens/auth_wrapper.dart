@@ -34,7 +34,12 @@ class AuthWrapper extends StatelessWidget {
     }
 
     // 3. Authenticated but Unverified -> Email Verification
-    if (user.isAnonymous || !user.emailVerified) {
+    // We check BOTH Firebase Auth's emailVerified AND our Firestore isVerified flag.
+    // This allows manual verification by Admin to work.
+    final firebaseVerified = user.emailVerified;
+    final firestoreVerified = userModel?.isVerified ?? false;
+
+    if (!user.isAnonymous && !firebaseVerified && !firestoreVerified) {
       return const EmailVerificationScreen();
     }
 

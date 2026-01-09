@@ -65,7 +65,11 @@ class AuthController extends ChangeNotifier {
   }
 
   // Link Email/Password to Anonymous Account (Student Registration Step)
-  Future<void> linkEmailCredentials(String email, String password) async {
+  Future<void> linkEmailCredentials(
+    String email,
+    String password,
+    String name,
+  ) async {
     if (_firebaseUser == null) return;
 
     try {
@@ -87,15 +91,10 @@ class AuthController extends ChangeNotifier {
       // Send verification email
       await _firebaseUser!.sendEmailVerification();
 
-      // We do NOT create the full 'student' role in Firestore yet.
-      // According to PRD: Email Verify -> Invite Code -> Role.
-      // But we can create a placeholder 'guest' doc to store email.
-      // Or just wait until Invite Code step to create the doc.
-      // Let's create a basic doc to track them.
-
       UserModel newUser = UserModel(
         uid: _firebaseUser!.uid,
         email: email,
+        name: name,
         role: UserRole.guest, // Still guest until Invite Code
         isVerified: false,
         createdAt: DateTime.now(),
@@ -193,6 +192,7 @@ class AuthController extends ChangeNotifier {
       UserModel newFaculty = UserModel(
         uid: uid,
         email: email,
+        name: name,
         role: UserRole.faculty,
         isVerified: true, // Auto-verified since Admin created it
         createdAt: DateTime.now(),

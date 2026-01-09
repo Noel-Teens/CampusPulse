@@ -6,6 +6,7 @@ import '../services/admin_service.dart';
 import 'add_faculty_screen.dart';
 import 'admin_issue_list_screen.dart';
 import '../../notices/screens/notices_screen.dart';
+import '../../feedback/screens/feedback_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -204,6 +205,17 @@ class AdminDashboard extends StatelessWidget {
           () => Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => const NoticesScreen())),
+        ),
+        _buildActionCard(
+          context,
+          "Manage Feedback",
+          "View & Respond", // Added subtitle based on common pattern
+          Icons.feedback_outlined,
+          AppColors.feedbackAccent,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+          ),
         ),
         _buildActionCard(
           context,

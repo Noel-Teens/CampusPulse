@@ -10,6 +10,7 @@ enum UserRole {
 class UserModel {
   final String uid;
   final String email;
+  final String? name;
   final UserRole role;
   final bool isVerified;
   final String? campusId;
@@ -18,6 +19,7 @@ class UserModel {
   UserModel({
     required this.uid,
     required this.email,
+    this.name,
     required this.role,
     this.isVerified = false,
     this.campusId,
@@ -28,6 +30,7 @@ class UserModel {
     return {
       'uid': uid,
       'email': email,
+      'name': name,
       'role': role.name, // Store enum as string
       'isVerified': isVerified,
       'campusId': campusId,
@@ -39,6 +42,7 @@ class UserModel {
     return UserModel(
       uid: map['uid'] ?? '',
       email: map['email'] ?? '',
+      name: map['name'],
       role: UserRole.values.firstWhere(
         (e) => e.name == map['role'],
         orElse: () => UserRole.guest,
