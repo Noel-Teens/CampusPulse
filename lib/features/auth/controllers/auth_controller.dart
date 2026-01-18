@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart'; // For secondary app
 import '../../../models/user_model.dart';
+import '../../../core/services/notification_service.dart';
 
 class AuthController extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -24,6 +25,8 @@ class AuthController extends ChangeNotifier {
     }
     return UserRole.guest;
   }
+
+  final NotificationService _notificationService = NotificationService();
 
   AuthController() {
     _auth.authStateChanges().listen((User? user) async {
@@ -47,6 +50,8 @@ class AuthController extends ChangeNotifier {
           .get();
       if (doc.exists) {
         _userModel = UserModel.fromMap(doc.data() as Map<String, dynamic>);
+        // Setup Notifications (Save Token & Subscribe)
+        _setupNotifications(_userModel!);
       } else {
         // If user document doesn't exist yet (e.g. freshly created)
         _userModel = null;
@@ -54,6 +59,21 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint("Error fetching user model: $e");
+    }
+  }
+
+  Future<void> _setupNotifications(UserModel user) async {
+    try {
+      // 1. Save Token
+      await _notificationService.saveToken(user.uid);
+
+      // 2. Subscribe to topics
+      await _notificationService.subscribeToTopic('all_users');
+      await _notificationService.subscribeToTopic(
+        user.role.name,
+      ); // e.g. 'student', 'faculty'
+    } catch (e) {
+      debugPrint("Error setting up notifications: $e");
     }
   }
 

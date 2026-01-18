@@ -82,140 +82,182 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     }
   }
 
-  // --- Student View: Submit Feedback ---
+  // --- Student View: View My Feedback ---
   Widget _buildStudentView(AuthController auth) {
-    if (_isLoadingFaculty)
-      return const Center(child: CircularProgressIndicator());
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "Help Us Improve",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.deepBlue,
+    return Scaffold(
+      body: StreamBuilder<List<FeedbackModel>>(
+        stream: _feedbackService.getStudentFeedback(auth.user!.uid),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text(
+                "You haven't submitted any feedback yet.",
+                style: TextStyle(color: AppColors.mutedGray),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Share your thoughts about campus facilities or faculty experience.",
-              style: TextStyle(color: AppColors.mutedGray),
-            ),
-            const SizedBox(height: 32),
+            );
+          }
 
-            // Faculty Selector
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: "Select Faculty/Department",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-              ),
-              items: _facultyList.map((f) {
-                return DropdownMenuItem(
-                  value: f['uid'] as String,
-                  child: Text(f['name'] as String),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  _selectedFacultyId = val;
-                  _selectedFacultyName = _facultyList.firstWhere(
-                    (element) => element['uid'] == val,
-                  )['name'];
-                });
-              },
-              validator: (val) => val == null ? "Required" : null,
-            ),
-            const SizedBox(height: 20),
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final f = snapshot.data![index];
+              return _buildFeedbackCard(f);
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddFeedbackDialog(auth),
+        label: const Text("Add Feedback"),
+        icon: const Icon(Icons.add_comment_outlined),
+        backgroundColor: AppColors.deepBlue,
+      ),
+    );
+  }
 
-            // Content
-            TextFormField(
-              controller: _contentController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: "Your Feedback",
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-              ),
-              validator: (val) =>
-                  val == null || val.isEmpty ? "Please enter feedback" : null,
-            ),
-            const SizedBox(height: 20),
+  void _showAddFeedbackDialog(AuthController auth) {
+    if (_isLoadingFaculty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Loading faculty list... please wait.")),
+      );
+      return;
+    }
 
-            // Anonymous Toggle
-            SwitchListTile(
-              title: const Text("Submit Anonymously"),
-              subtitle: Text(
-                _isAnonymous
-                    ? "Your name will not be shared with the faculty."
-                    : "Your name will be visible to the faculty.",
-              ),
-              value: _isAnonymous,
-              onChanged: (val) => setState(() => _isAnonymous = val),
-              activeColor: AppColors.tealAccent,
-            ),
-            const SizedBox(height: 32),
-
-            ElevatedButton(
-              onPressed: () => _submitFeedback(auth),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                backgroundColor: AppColors.deepBlue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
                 "Submit Feedback",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.deepBlue,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: "Select Faculty/Department",
+                  border: OutlineInputBorder(),
+                ),
+                items: _facultyList.map((f) {
+                  return DropdownMenuItem(
+                    value: f['uid'] as String,
+                    child: Text(f['name'] as String),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedFacultyId = val;
+                    _selectedFacultyName = _facultyList.firstWhere(
+                      (element) => element['uid'] == val,
+                    )['name'];
+                  });
+                },
+                validator: (val) => val == null ? "Required" : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _contentController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: "Your Feedback",
+                  border: OutlineInputBorder(),
+                ),
+                validator: (val) =>
+                    val == null || val.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 12),
+              // We need to use valid state management for the switch in a BottomSheet
+              // or just use a stateful builder if needed, but for simplicity
+              // we can keep it simple or use a checkbox.
+              // A StatefulBuilder is safest for the switch to update visually.
+              StatefulBuilder(
+                builder: (context, setSheetState) {
+                  return SwitchListTile(
+                    title: const Text("Submit Anonymously"),
+                    value: _isAnonymous,
+                    onChanged: (val) {
+                      setSheetState(() => _isAnonymous = val);
+                      setState(() => _isAnonymous = val); // Update parent too
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  if (_submitFeedback(auth)) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text("Submit"),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _submitFeedback(AuthController auth) async {
-    if (!_formKey.currentState!.validate()) return;
+  bool _submitFeedback(AuthController auth) {
+    if (!_formKey.currentState!.validate()) return false;
+
+    if (_selectedFacultyId == null) return false;
 
     final feedback = FeedbackModel(
       id: _feedbackService.generateId(),
       content: _contentController.text.trim(),
       studentId: auth.user!.uid,
-      studentName:
-          auth.userModel?.name ??
-          'Guest Student', // Assuming name field exists or fallback
+      studentName: auth.userModel?.name ?? 'Guest Student',
       isAnonymous: _isAnonymous,
       facultyId: _selectedFacultyId!,
       facultyName: _selectedFacultyName!,
       createdAt: DateTime.now(),
     );
 
-    try {
-      await _feedbackService.submitFeedback(feedback);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Feedback submitted successfully!")),
-        );
-        _contentController.clear();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
-    }
+    _feedbackService
+        .submitFeedback(feedback)
+        .then((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Feedback submitted successfully!")),
+            );
+            _contentController.clear();
+            // selection reset handled in state if needed
+          }
+        })
+        .catchError((e) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("Error: $e")));
+          }
+        });
+
+    return true;
   }
 
   // --- Faculty View: View Feedback ---

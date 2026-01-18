@@ -14,6 +14,21 @@ class FeedbackService {
         .set(feedback.toMap());
   }
 
+  // Get feedback for specific student (My Feedback)
+  Stream<List<FeedbackModel>> getStudentFeedback(String studentId) {
+    return _firestore
+        .collection(_collection)
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => FeedbackModel.fromMap(doc.data()))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
+  }
+
   // Get feedback for specific faculty
   Stream<List<FeedbackModel>> getFeedbackForFaculty(String facultyId) {
     debugPrint("Fetching feedback for faculty: $facultyId");

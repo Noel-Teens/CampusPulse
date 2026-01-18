@@ -6,6 +6,7 @@ import 'app.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/ai_assistant/controllers/ai_controller.dart';
 import 'firebase_options.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,14 @@ void main() async {
     );
   } catch (e) {
     debugPrint("Firebase initialization failed: $e");
+  }
+
+  // Initialize Notification Service
+  try {
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+  } catch (e) {
+    debugPrint("Notification init failed: $e");
   }
 
   runApp(
