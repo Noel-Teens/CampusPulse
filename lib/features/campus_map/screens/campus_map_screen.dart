@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../issue_reporting/screens/report_issue_screen.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/directions_service.dart';
 
 enum MarkerCategory { all, academic, admin, hostel, important }
 
@@ -82,9 +83,41 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
 
   Future<void> _startNavigation(CampusMarker marker) async {
     debugPrint("Navigation requested for: ${marker.title}");
+
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text("Getting your location and route..."),
+            ],
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
     final hasPermission = await _handleLocationPermission();
     if (!hasPermission) {
       debugPrint("Location permission denied or services disabled.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Location permission is required for navigation"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -92,65 +125,138 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       debugPrint("Fetching current position...");
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
       );
       debugPrint(
         "Current position: ${position.latitude}, ${position.longitude}",
       );
 
+      final origin = LatLng(position.latitude, position.longitude);
+      final destination = marker.position;
+
+      // Fetch real directions from Google Directions API
+      debugPrint("Fetching directions from Google Directions API...");
+      final directionsService = DirectionsService();
+      final routePoints = await directionsService.getDirections(
+        origin,
+        destination,
+      );
+
+      final details = await directionsService.getDirectionsDetails(
+        origin,
+        destination,
+      );
+
+      debugPrint("Route has ${routePoints.length} points");
+
       setState(() {
         _polylines = {
           Polyline(
             polylineId: const PolylineId("route"),
-            points: [
-              LatLng(position.latitude, position.longitude),
-              marker.position,
-            ],
+            points: routePoints,
             color: AppColors.deepBlue,
-            width: 5,
+            width: 6,
+            geodesic: true,
           ),
         };
       });
 
-      debugPrint("Drawing polyline and moving camera.");
+      debugPrint("Drawing route and moving camera.");
 
-      // Calculate robust bounds
-      double minLat = position.latitude < marker.position.latitude
-          ? position.latitude
-          : marker.position.latitude;
-      double maxLat = position.latitude > marker.position.latitude
-          ? position.latitude
-          : marker.position.latitude;
-      double minLng = position.longitude < marker.position.longitude
-          ? position.longitude
-          : marker.position.longitude;
-      double maxLng = position.longitude > marker.position.longitude
-          ? position.longitude
-          : marker.position.longitude;
+      // Calculate bounds from all route points
+      if (routePoints.length >= 2) {
+        double minLat = routePoints.first.latitude;
+        double maxLat = routePoints.first.latitude;
+        double minLng = routePoints.first.longitude;
+        double maxLng = routePoints.first.longitude;
 
-      LatLngBounds bounds = LatLngBounds(
-        southwest: LatLng(minLat, minLng),
-        northeast: LatLng(maxLat, maxLng),
-      );
+        for (var point in routePoints) {
+          if (point.latitude < minLat) minLat = point.latitude;
+          if (point.latitude > maxLat) maxLat = point.latitude;
+          if (point.longitude < minLng) minLng = point.longitude;
+          if (point.longitude > maxLng) maxLng = point.longitude;
+        }
 
-      await mapController.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 100),
-      );
+        // Add padding to bounds (15% on each side)
+        double latPadding = (maxLat - minLat) * 0.15;
+        double lngPadding = (maxLng - minLng) * 0.15;
+
+        LatLngBounds bounds = LatLngBounds(
+          southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+          northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+        );
+
+        // Animate camera to show the route
+        await mapController.animateCamera(
+          CameraUpdate.newLatLngBounds(bounds, 50),
+        );
+      }
 
       if (mounted) {
+        final distanceText =
+            details['distanceText'] ??
+            '${(details['distance'] as int? ?? 0)} m';
+        final durationText =
+            details['durationText'] ??
+            '${((details['duration'] as int? ?? 0) / 60).toStringAsFixed(0)} min';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "Navigating from current location to ${marker.title}",
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Route to ${marker.title}",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.directions_walk,
+                      size: 14,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "$distanceText • $durationText",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
             ),
             backgroundColor: AppColors.deepBlue,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: "Clear",
+              textColor: Colors.white,
+              onPressed: () {
+                setState(() {
+                  _polylines = {};
+                });
+              },
+            ),
           ),
         );
       }
     } catch (e) {
       debugPrint("Error during navigation: $e");
       if (mounted) {
+        String errorMessage = "Error starting navigation";
+        if (e.toString().contains("timeout")) {
+          errorMessage = "Location request timed out. Please try again.";
+        } else if (e.toString().contains("disabled")) {
+          errorMessage = "Please enable location services in settings";
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error starting navigation: $e")),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }
